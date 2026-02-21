@@ -1,0 +1,17 @@
+# =========================================
+# CODEOWNERS – Protección de rama principal
+# =========================================
+# Requiere revisión de los propietarios del
+# código antes de aprobar merges a main.
+#
+# Formato: <patrón> <usuario(s)>
+# =========================================
+
+# Propietario global (revisa todos los cambios)
+* @jaimebacotich
+
+# Pipeline CI/CD – cambios críticos
+.github/ @jaimebacotich
+
+# Dockerfiles – seguridad
+**/Dockerfile @jaimebacotich
