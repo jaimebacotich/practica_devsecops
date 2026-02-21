@@ -102,10 +102,15 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Create .env files for Docker
+        run: |
+          touch frontend/.env
+          touch backend/users-service/.env
+          touch backend/academic-service/.env
+          touch backend/api-gateway/.env
+
       - name: Build Docker images
         run: |
-          # Crear archivos .env mínimos para el build si es necesario
-          touch frontend/.env
           docker compose -f backend/docker-compose.yml build
 
       # =========================

@@ -21,7 +21,7 @@
     "glob": "^13.0.0",
     "jest": "^30.2.0",
     "jsonwebtoken": "^9.0.3",
-    "tar": "^7.5.7"
+    "tar": "^7.5.8"
   },
   "devDependencies": {
     "eslint": "^9.39.1",
