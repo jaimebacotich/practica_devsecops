@@ -86,7 +86,6 @@ jobs:
           config: >-
             p/javascript
             p/nodejsscan
-          auditOn: push
 
       # =========================
       # 8. Seguridad de Dependencias – SCA (Trivy fs)
