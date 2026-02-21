@@ -1,3 +1,15 @@
+# ============================================================
+# DevSecOps CI/CD Pipeline – Practica 2
+# ============================================================
+# Mejoras implementadas:
+#   - SAST (Semgrep) – Análisis estático de código fuente
+#   - SCA  (Trivy fs) – Escaneo de dependencias vulnerables
+#   - DAST (OWASP ZAP) – Escaneo dinámico del API en ejecución
+#   - Secret Scanning (Gitleaks) – Detección de secretos filtrados
+#   - Docker Multi-Stage Build – Imágenes optimizadas
+#   - Non-Root Containers – Ejecución con usuario sin privilegios
+#   - Branch Protection – Requiere PR + revisión + checks verdes
+# ============================================================
 name: DevSecOps CI/CD Pipeline
 
 on:
