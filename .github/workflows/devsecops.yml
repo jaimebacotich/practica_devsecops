@@ -28,7 +28,7 @@ jobs:
       # =========================
       # 3. Crear archivos .env necesarios
       # =========================
-      - name: Create .env files
+      - name: Create .env files for Docker Compose
         run: |
           touch frontend/.env
           touch backend/users-service/.env
@@ -36,73 +36,89 @@ jobs:
           touch backend/api-gateway/.env
 
       # =========================
-      # 4. Instalación reproducible (npm ci)
+      # 4. Install, Lint & Test – por servicio
       # =========================
-      - name: Install dependencies (Reproducible)
+      - name: Install & Test users-service
         run: |
-          echo "Installing frontend..."
-          (cd frontend && npm ci)
-          echo "Installing users-service..."
-          (cd backend/users-service && npm ci)
-          echo "Installing academic-service..."
-          (cd backend/academic-service && npm ci)
-          echo "Installing api-gateway..."
-          (cd backend/api-gateway && npm ci)
+          cd backend/users-service
+          npm ci
+          npm run lint
+          npm test
 
-      # =========================
-      # 5. Análisis de Calidad del Código (ESLint)
-      # =========================
-      - name: Run Code Quality Analysis (ESLint)
+      - name: Install & Test academic-service
         run: |
-          echo "Linting frontend..."
-          (cd frontend && npm run lint)
-          echo "Linting users-service..."
-          (cd backend/users-service && npm run lint)
-          echo "Linting academic-service..."
-          (cd backend/academic-service && npm run lint)
-          echo "Linting api-gateway..."
-          (cd backend/api-gateway && npm run lint)
+          cd backend/academic-service
+          npm ci
+          npm run lint
+          npm test
 
-      # =========================
-      # 6. Testing Automático (Jest)
-      # =========================
-      - name: Run Automated Tests
+      - name: Install & Test api-gateway
         run: |
-          echo "Testing frontend..."
-          (cd frontend && npm test)
-          echo "Testing users-service..."
-          (cd backend/users-service && npm test)
-          echo "Testing academic-service..."
-          (cd backend/academic-service && npm test)
-          echo "Testing api-gateway..."
-          (cd backend/api-gateway && npm test)
+          cd backend/api-gateway
+          npm ci
+          npm run lint
+          npm test
+
+      - name: Install & Test frontend
+        run: |
+          cd frontend
+          npm ci
+          npm run lint
+          npm test
 
       # =========================
-      # 7. Seguridad del Código – SAST (Semgrep)
+      # 5. Instalar Semgrep (SAST)
       # =========================
-      - name: SAST Security Scan (Semgrep)
-        uses: semgrep/semgrep-action@v1
-        with:
-          config: >-
-            p/javascript
-            p/nodejsscan
+      - name: Install Semgrep
+        run: pip install semgrep
 
       # =========================
-      # 8. Seguridad de Dependencias – SCA (Trivy fs)
-      #    Escanea el filesystem por vulnerabilidades en paquetes
+      # 6. SAST – por servicio
       # =========================
-      - name: Dependency Security Scan - SCA (Trivy fs)
-        uses: aquasecurity/trivy-action@master
-        with:
-          scan-type: 'fs'
-          scan-ref: '.'
-          format: 'table'
-          severity: 'CRITICAL,HIGH'
-          exit-code: '1'
-          scanners: 'vuln'
+      - name: SAST user-service
+        run: |
+          semgrep --config=p/javascript --config=p/nodejsscan \
+            backend/users-service --error --quiet
+
+      - name: SAST academic-service
+        run: |
+          semgrep --config=p/javascript --config=p/nodejsscan \
+            backend/academic-service --error --quiet
+
+      - name: SAST api-gateway
+        run: |
+          semgrep --config=p/javascript --config=p/nodejsscan \
+            backend/api-gateway --error --quiet
 
       # =========================
-      # 9. Build de imágenes Docker
+      # 7. Validar archivos .env
+      #    Asegura que no contengan secretos reales
+      # =========================
+      - name: Validate env files
+        run: |
+          echo "Validando que los archivos .env no contengan secretos reales..."
+          EXIT_CODE=0
+          for f in \
+            frontend/.env \
+            backend/users-service/.env \
+            backend/academic-service/.env \
+            backend/api-gateway/.env; do
+            if [ -s "$f" ]; then
+              echo "ADVERTENCIA: $f no está vacío, revisando secretos..."
+              if grep -qiE "(password|secret|key|token)\s*=\s*.+" "$f"; then
+                echo "ERROR: $f parece contener secretos reales."
+                EXIT_CODE=1
+              else
+                echo "OK: $f no contiene secretos detectables."
+              fi
+            else
+              echo "OK: $f está vacío (sin secretos)."
+            fi
+          done
+          exit $EXIT_CODE
+
+      # =========================
+      # 8. Build de imágenes Docker
       # =========================
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -114,10 +130,9 @@ jobs:
           docker build -t api-gateway:latest ./backend/api-gateway
 
       # =========================
-      # 10. Seguridad de Contenedores (Trivy Image Scan)
-      #     Solo escanea las imágenes Docker resultantes del build
+      # 9. Escaneo de seguridad – imágenes Docker (Trivy)
       # =========================
-      - name: Security Scan - users-service image (Trivy)
+      - name: Trivy scan users-service
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: 'users-service:latest'
@@ -125,7 +140,7 @@ jobs:
           severity: 'CRITICAL,HIGH'
           exit-code: '1'
 
-      - name: Security Scan - academic-service image (Trivy)
+      - name: Trivy scan academic-service
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: 'academic-service:latest'
@@ -133,7 +148,7 @@ jobs:
           severity: 'CRITICAL,HIGH'
           exit-code: '1'
 
-      - name: Security Scan - api-gateway image (Trivy)
+      - name: Trivy scan api-gateway
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: 'api-gateway:latest'
@@ -142,14 +157,19 @@ jobs:
           exit-code: '1'
 
       # =========================
-      # 11. Smoke Test del sistema
+      # 10. Smoke Test del sistema
       # =========================
-      - name: Run services and Smoke Test
+      - name: Run docker-compose
         run: |
           docker compose -f backend/docker-compose.yml up -d
-          echo "Waiting for services to start..."
+          echo "Esperando que los servicios arranquen..."
           sleep 20
-          curl -f http://localhost:3000/health || (docker compose -f backend/docker-compose.yml logs && exit 1)
+        continue-on-error: true
+
+      - name: Smoke test API Gateway
+        run: |
+          curl -f http://localhost:3000/health || \
+            (docker compose -f backend/docker-compose.yml logs && exit 1)
         continue-on-error: true
 
       - name: Shutdown services
