@@ -41,13 +41,13 @@ jobs:
       - name: Install dependencies (Reproducible)
         run: |
           echo "Installing frontend..."
-          cd frontend && npm ci
+          (cd frontend && npm ci)
           echo "Installing users-service..."
-          cd ../backend/users-service && npm ci
+          (cd backend/users-service && npm ci)
           echo "Installing academic-service..."
-          cd ../academic-service && npm ci
+          (cd backend/academic-service && npm ci)
           echo "Installing api-gateway..."
-          cd ../api-gateway && npm ci
+          (cd backend/api-gateway && npm ci)
 
       # =========================
       # 5. Análisis de Calidad del Código (ESLint)
@@ -55,13 +55,13 @@ jobs:
       - name: Run Code Quality Analysis (ESLint)
         run: |
           echo "Linting frontend..."
-          cd frontend && npm run lint
+          (cd frontend && npm run lint)
           echo "Linting users-service..."
-          cd ../backend/users-service && npm run lint
+          (cd backend/users-service && npm run lint)
           echo "Linting academic-service..."
-          cd ../backend/academic-service && npm run lint
+          (cd backend/academic-service && npm run lint)
           echo "Linting api-gateway..."
-          cd ../backend/api-gateway && npm run lint
+          (cd backend/api-gateway && npm run lint)
 
       # =========================
       # 6. Testing Automático (Jest)
@@ -69,13 +69,13 @@ jobs:
       - name: Run Automated Tests
         run: |
           echo "Testing frontend..."
-          cd frontend && npm test
+          (cd frontend && npm test)
           echo "Testing users-service..."
-          cd ../backend/users-service && npm test
+          (cd backend/users-service && npm test)
           echo "Testing academic-service..."
-          cd ../backend/academic-service && npm test
+          (cd backend/academic-service && npm test)
           echo "Testing api-gateway..."
-          cd ../backend/api-gateway && npm test
+          (cd backend/api-gateway && npm test)
 
       # =========================
       # 7. Seguridad del Código – SAST (Semgrep)
@@ -90,7 +90,7 @@ jobs:
 
       # =========================
       # 8. Seguridad de Dependencias – SCA (Trivy fs)
-      #    Solo escanea dependencias de producción (node-pkg)
+      #    Escanea el filesystem por vulnerabilidades en paquetes
       # =========================
       - name: Dependency Security Scan - SCA (Trivy fs)
         uses: aquasecurity/trivy-action@master
@@ -116,7 +116,7 @@ jobs:
 
       # =========================
       # 10. Seguridad de Contenedores (Trivy Image Scan)
-      #     Escanea las imágenes resultantes del build
+      #     Solo escanea las imágenes Docker resultantes del build
       # =========================
       - name: Security Scan - users-service image (Trivy)
         uses: aquasecurity/trivy-action@master
