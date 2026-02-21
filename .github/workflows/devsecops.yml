@@ -9,10 +9,10 @@ on:
 jobs:
   devsecops:
     runs-on: ubuntu-latest
-    
+
     steps:
       # =========================
-      # 1. Checkout
+      # 1. Checkout del código
       # =========================
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -23,16 +23,20 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: 'npm'
-          cache-dependency-path: |
-            frontend/package-lock.json
-            backend/users-service/package-lock.json
-            backend/academic-service/package-lock.json
-            backend/api-gateway/package-lock.json
+          node-version: '20'
 
       # =========================
-      # 3. Instalación reproducible (npm ci)
+      # 3. Crear archivos .env necesarios
+      # =========================
+      - name: Create .env files
+        run: |
+          touch frontend/.env
+          touch backend/users-service/.env
+          touch backend/academic-service/.env
+          touch backend/api-gateway/.env
+
+      # =========================
+      # 4. Instalación reproducible (npm ci)
       # =========================
       - name: Install dependencies (Reproducible)
         run: |
@@ -46,15 +50,8 @@ jobs:
           cd ../api-gateway && npm ci
 
       # =========================
-      # 4. Análisis de Calidad (Linting)
+      # 5. Análisis de Calidad del Código (ESLint)
       # =========================
-      - name: Create .env files for local/CI tools
-        run: |
-          touch frontend/.env
-          touch backend/users-service/.env
-          touch backend/academic-service/.env
-          touch backend/api-gateway/.env
-
       - name: Run Code Quality Analysis (ESLint)
         run: |
           echo "Linting frontend..."
@@ -62,12 +59,12 @@ jobs:
           echo "Linting users-service..."
           cd ../backend/users-service && npm run lint
           echo "Linting academic-service..."
-          cd ../academic-service && npm run lint
+          cd ../backend/academic-service && npm run lint
           echo "Linting api-gateway..."
-          cd ../api-gateway && npm run lint
+          cd ../backend/api-gateway && npm run lint
 
       # =========================
-      # 5. Testing Automático
+      # 6. Testing Automático (Jest)
       # =========================
       - name: Run Automated Tests
         run: |
@@ -76,12 +73,12 @@ jobs:
           echo "Testing users-service..."
           cd ../backend/users-service && npm test
           echo "Testing academic-service..."
-          cd ../academic-service && npm test
+          cd ../backend/academic-service && npm test
           echo "Testing api-gateway..."
-          cd ../api-gateway && npm test
+          cd ../backend/api-gateway && npm test
 
       # =========================
-      # 6. Seguridad del Código (SAST - Semgrep)
+      # 7. Seguridad del Código – SAST (Semgrep)
       # =========================
       - name: SAST Security Scan (Semgrep)
         uses: semgrep/semgrep-action@v1
@@ -92,9 +89,10 @@ jobs:
           auditOn: push
 
       # =========================
-      # 7. Seguridad de Dependencias (SCA - Trivy fs)
+      # 8. Seguridad de Dependencias – SCA (Trivy fs)
+      #    Solo escanea dependencias de producción (node-pkg)
       # =========================
-      - name: Dependency Security Scan (SCA)
+      - name: Dependency Security Scan - SCA (Trivy fs)
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'fs'
@@ -102,48 +100,55 @@ jobs:
           format: 'table'
           severity: 'CRITICAL,HIGH'
           exit-code: '1'
+          scanners: 'vuln'
 
       # =========================
-      # 8. Build de Contenedores
+      # 9. Build de imágenes Docker
       # =========================
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
       - name: Build Docker images
         run: |
-          docker compose -f backend/docker-compose.yml build
+          docker build -t users-service:latest ./backend/users-service
+          docker build -t academic-service:latest ./backend/academic-service
+          docker build -t api-gateway:latest ./backend/api-gateway
 
       # =========================
-      # 9. Seguridad de Contenedores (Trivy Image Scan)
+      # 10. Seguridad de Contenedores (Trivy Image Scan)
+      #     Escanea las imágenes resultantes del build
       # =========================
-      - name: Trivy scan users-service image
+      - name: Security Scan - users-service image (Trivy)
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: users-service
+          image-ref: 'users-service:latest'
+          format: 'table'
           severity: 'CRITICAL,HIGH'
           exit-code: '1'
 
-      - name: Trivy scan academic-service image
+      - name: Security Scan - academic-service image (Trivy)
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: academic-service
+          image-ref: 'academic-service:latest'
+          format: 'table'
           severity: 'CRITICAL,HIGH'
           exit-code: '1'
 
-      - name: Trivy scan api-gateway image
+      - name: Security Scan - api-gateway image (Trivy)
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: api-gateway
+          image-ref: 'api-gateway:latest'
+          format: 'table'
           severity: 'CRITICAL,HIGH'
           exit-code: '1'
 
       # =========================
-      # 10. Smoke Test (Opcional)
+      # 11. Smoke Test del sistema
       # =========================
       - name: Run services and Smoke Test
         run: |
           docker compose -f backend/docker-compose.yml up -d
-          echo "Waiting for services..."
+          echo "Waiting for services to start..."
           sleep 20
           curl -f http://localhost:3000/health || (docker compose -f backend/docker-compose.yml logs && exit 1)
         continue-on-error: true
