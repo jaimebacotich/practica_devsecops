@@ -13,6 +13,13 @@ RUN npm install -g npm@latest && npm ci --omit=dev
 # ================================
 FROM node:22-alpine AS runtime
 
+# Eliminar npm, npx y yarn del runtime (no se necesitan)
+# Esto remueve vulnerabilidades de tar, glob y minimatch
+RUN rm -rf /usr/local/lib/node_modules/npm \
+    /usr/local/bin/npm /usr/local/bin/npx \
+    /opt/yarn-* /usr/local/bin/yarn /usr/local/bin/yarnpkg \
+    /usr/local/lib/node_modules/corepack
+
 # Crear grupo y usuario sin privilegios
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
