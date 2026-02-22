@@ -1,3 +1,4 @@
+// Servidor del microservicio de usuarios
 require("dotenv").config();
 const app = require("./app");
 
